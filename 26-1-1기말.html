@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>귀요미들을 위한 단어 도우미</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+            --success-color: #16a34a;
+            --wrong-color: #dc2626;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { color: var(--primary-color); font-size: 2.2rem; margin-bottom: 10px; font-weight: 800; }
+        header p { color: #64748b; }
+
+        /* 탭 스타일 */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; overflow-x: auto; }
+        .tab-btn { padding: 10px 20px; border: none; background: none; font-size: 1.05rem; font-weight: 700; color: #64748b; cursor: pointer; border-radius: 8px; transition: all 0.2s; white-space: nowrap; }
+        .tab-btn:hover { background-color: #f1f5f9; color: var(--text-color); }
+        .tab-btn.active { background-color: var(--primary-color); color: white; }
+
+        .tab-content { display: none; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .tab-content.active { display: block; }
+
+        /* 테이블 및 레이아웃 공통 */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background-color: #f1f5f9; font-weight: 600; }
+        
+        input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
+        input[type="text"]:focus { border-color: var(--primary-color); outline: none; }
+        
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
+        .status-none { background: #e2e8f0; color: #475569; }
+        .status-correct { background: #dcfce7; color: var(--success-color); }
+        .status-wrong { background: #fee2e2; color: var(--wrong-color); }
+
+        .btn-check { display: block; margin: 20px auto 0; padding: 12px 30px; background: var(--primary-color); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
+        .btn-check:hover { background: var(--primary-hover); }
+
+        /* 카드형 레이아웃 (반의어 학습용) */
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
+        .voca-card { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; }
+        .voca-card .word { font-size: 1.2rem; font-weight: bold; color: var(--primary-color); }
+        .voca-card .meaning { font-size: 0.95rem; color: #475569; margin-bottom: 8px; }
+        .voca-card .target-val { font-weight: 600; color: #0f172a; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+
+        /* 지문 학습 Cloze 스타일 */
+        .passage-box { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px dashed var(--border-color); }
+        .passage-title { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .passage-summary { background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-color); }
+        .kor-summary { line-height: 1.8; font-size: 1rem; font-weight: 500; color: #1e293b; margin-bottom: 12px; }
+        .eng-summary { line-height: 1.7; font-size: 0.95rem; color: #475569; padding-top: 12px; border-top: 1px solid #cbd5e1; font-style: italic; }
+        
+        /* Cloze 빈칸 버튼 */
+        .cloze { background-color: #cbd5e1; color: #cbd5e1; border-radius: 4px; padding: 2px 8px; cursor: pointer; transition: all 0.3s; font-weight: bold; display: inline-block; user-select: none; }
+        .cloze.revealed { background-color: #fef08a; color: #b45309; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>귀요미들을 위한 단어 도우미</h1>
+        <p>50개 빈출 핵심 단어 시험 및 지문 요약 Cloze 완성형 테스트</p>
+    </header>
+
+    <!-- 탭 내비게이션 -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'tab1')">1. 본문 단어 테스트</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab2')">2. 유의어 학습 & 시험</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab3')">3. 반의어 학습</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab4')">4. 찐 막 정리</button>
+    </div>
+
+    <!-- TAB 1: 본문 단어 테스트 -->
+    <div id="tab1" class="tab-content active">
+        <h3>본문 출제 단어 한글 뜻 시험지</h3>
+        <p style="color: #64748b; margin-bottom: 15px;">지문에 그대로 제시된 핵심 단어들입니다. 한글 뜻을 타이핑 후 하단의 [정답 확인]을 누르세요.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 8%;">번호</th>
+                    <th style="width: 18%;">단어 (영문)</th>
+                    <th style="width: 24%;">정답 타이핑 (한글 뜻)</th>
+                    <th style="width: 35%;">유의어 (3개)</th>
+                    <th style="width: 15%;">반의어</th>
+                </tr>
+            </thead>
+            <tbody id="voca-test-body">
+                <!-- JS에서 동적 생성 -->
+            </tbody>
+        </table>
+        <button class="btn-check" onclick="checkVocaTest()">본문 단어 정답 확인</button>
+    </div>
+
+    <!-- TAB 2: 유의어 학습 & 시험 -->
+    <div id="tab2" class="tab-content">
+        <h3>핵심 유의어(Synonyms) 매칭 시험</h3>
+        <p style="color: #64748b; margin-bottom: 15px;">제시된 단어의 <strong>유의어 중 1개만 맞게 입력</strong>해도 정답으로 인정됩니다!</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%;">번호</th>
+                    <th style="width: 25%;">기준 단어 [뜻]</th>
+                    <th style="width: 35%;">유의어 정답 입력</th>
+                    <th style="width: 15%;">상태</th>
+                    <th style="width: 15%;">정답 보기</th>
+                </tr>
+            </thead>
+            <tbody id="synonym-test-body">
+                <!-- JS에서 동적 생성 -->
+            </tbody>
+        </table>
+        <button class="btn-check" onclick="checkSynonymTest()">유의어 정답 확인</button>
+    </div>
+
+    <!-- TAB 3: 반의어 학습 탭 -->
+    <div id="tab3" class="tab-content">
+        <h3>고빈출 반의어(Antonyms) 도감</h3>
+        <p style="color: #64748b; margin-bottom: 15px;">독해 문제 풀이 시 반의어 장난으로 자주 출제되는 어휘의 대비 쌍을 마스터합니다.</p>
+        <div class="grid-container" id="antonym-grid">
+            <!-- JS에서 동적 생성 -->
+        </div>
+    </div>
+
+    <!-- TAB 4: 찐 막 정리 (Cloze 학습) -->
+    <div id="tab4" class="tab-content">
+        <h3>찐 막 정리 (한/영 통합 요약 노트)</h3>
+        <p style="color: #64748b; margin-bottom: 20px;">각 지문의 핵심 요지입니다. <span style="background:#cbd5e1; padding:2px 6px; border-radius:4px; font-weight:bold; color:#f8fafc;">회색 음영 빈칸</span>을 클릭하면 숨겨진 한글 및 영어 키워드가 나타납니다.</p>
+        <div id="passage-container">
+            <!-- JS에서 동적 생성 -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // 50개 마스터 데이터 (유의어 2개씩 추가)
+    const vocaData = [
+        { id: 1, word: "advance", mean: "미리", syn: "beforehand, ahead, previously", ant: "afterward" },
+        { id: 2, word: "unfold", mean: "전개되다", syn: "develop, reveal, evolve", ant: "wither" },
+        { id: 3, word: "emerge", mean: "드러나다", syn: "appear, arise, surface", ant: "disappear" },
+        { id: 4, word: "instantly", mean: "즉각적으로", syn: "immediately, promptly, right away", ant: "gradually" },
+        { id: 5, word: "straightforward", mean: "복잡하지 않은", syn: "simple, clear, uncomplicated", ant: "complicated" },
+        { id: 6, word: "achieve", mean: "성취하다", syn: "accomplish, attain, fulfill", ant: "fail" },
+        { id: 7, word: "obtain", mean: "얻다", syn: "acquire, gain, get", ant: "lose" },
+        { id: 8, word: "adapt", mean: "적응하다", syn: "adjust, modify, accommodate", ant: "reject" },
+        { id: 9, word: "selection", mean: "선택", syn: "choice, option, pick", ant: "rejection" },
+        { id: 10, word: "anatomy", mean: "구조", syn: "structure, framework, makeup", ant: "unorganization" },
+        { id: 11, word: "dependence", mean: "의존", syn: "reliance, leaning, trust", ant: "independence" },
+        { id: 12, word: "evolution", mean: "진화", syn: "development, progression, growth", ant: "stagnation" },
+        { id: 13, word: "adverse", mean: "부정적인", syn: "unfavorable, negative, detrimental", ant: "favorable" },
+        { id: 14, word: "prevent", mean: "막다", syn: "block, stop, hinder", ant: "permit" },
+        { id: 15, word: "detach", mean: "떼다", syn: "separate, disconnect, unfasten", ant: "attach" },
+        { id: 16, word: "limitation", mean: "한계", syn: "restriction, boundary, constraint", ant: "infinity" },
+        { id: 17, word: "integrity", mean: "온전함", syn: "completeness, soundness, wholeness", ant: "corruption" },
+        { id: 18, word: "habitability", mean: "거주 가능성", syn: "livability, habitableness, residency", ant: "unhabitability" },
+        { id: 19, word: "vulnerable", mean: "취약한", syn: "susceptible, weak, defenseless", ant: "invulnerable" },
+        { id: 20, word: "enforcement", mean: "시행", syn: "implementation, execution, application", ant: "evasement" },
+        { id: 21, word: "emission", mean: "배출", syn: "discharge, release, radiation", ant: "absorption" },
+        { id: 22, word: "significant", mean: "상당한", syn: "substantial, important, meaningful", ant: "insignificant" },
+        { id: 23, word: "intensive", mean: "집중적인", syn: "concentrated, thorough, exhaustive", ant: "extensive" },
+        { id: 24, word: "output", mean: "산출", syn: "production, yield, product", ant: "input" },
+        { id: 25, word: "surplus", mean: "잉여", syn: "excess, remainder, leftover", ant: "deficit" },
+        { id: 26, word: "allocation", mean: "배분", syn: "distribution, assignment, allotment", ant: "concentration" },
+        { id: 27, word: "resource", mean: "자원", syn: "asset, supply, source", ant: "exhaustion" },
+        { id: 28, word: "diversity", mean: "다양성", syn: "variety, multiplicity, range", ant: "uniformity" },
+        { id: 29, word: "tolerant", mean: "내성이 있는", syn: "resistant, enduring, patient", ant: "sensitive" },
+        { id: 30, word: "pesticide", mean: "살충제", syn: "insecticide, bug killer, agrochemical", ant: "fertilizer" },
+        { id: 31, word: "absolute", mean: "절대적인", syn: "complete, total, utter", ant: "relative" },
+        { id: 32, word: "content", mean: "만족하는", syn: "satisfied, pleased, happy", ant: "discontented" },
+        { id: 33, word: "enraged", mean: "격분한", syn: "furious, angered, outraged", ant: "calm" },
+        { id: 34, word: "intensity", mean: "강도", syn: "strength, force, power", ant: "weakness" },
+        { id: 35, word: "extended", mean: "장기간의", syn: "prolonged, lengthened, stretched", ant: "brief" },
+        { id: 36, word: "reassurance", mean: "안심시키기", syn: "comfort, consolation, encouragement", ant: "alarm" },
+        { id: 37, word: "identity", mean: "정체성", syn: "character, individuality, self", ant: "anonymity" },
+        { id: 38, word: "structure", mean: "구조", syn: "framework, organization, form", ant: "disorganization" },
+        { id: 39, word: "expectation", mean: "기대", syn: "anticipation, prospect, hope", ant: "despair" },
+        { id: 40, word: "depletion", mean: "고갈", syn: "exhaustion, reduction, drain", ant: "accumulation" },
+        { id: 41, word: "estimate", mean: "추정하다", syn: "calculate, evaluate, approximate", ant: "finalize" },
+        { id: 42, word: "private", mean: "사적인", syn: "personal, confidential, secret", ant: "public" },
+        { id: 43, word: "extinct", mean: "멸종된", syn: "vanished, defunct, dead", ant: "existent" },
+        { id: 44, word: "detect", mean: "감지하다", syn: "discover, notice, spot", ant: "overlook" },
+        { id: 45, word: "identify", mean: "확인하다", syn: "recognize, determine, pinpoint", ant: "misunderstand" },
+        { id: 46, word: "differentiate", mean: "구별하다", syn: "distinguish, discriminate, separate", ant: "integrate" },
+        { id: 47, word: "standard", mean: "기준", syn: "criterion, benchmark, measure", ant: "anomaly" },
+        { id: 48, word: "core", mean: "핵심", syn: "essence, center, heart", ant: "periphery" },
+        { id: 49, word: "retain", mean: "유지하다", syn: "keep, maintain, preserve", ant: "abandon" },
+        { id: 50, word: "circumstance", mean: "상황", syn: "situation, condition, context", ant: "intention" }
+    ];
+
+    // 18개 전체 지문 데이터 (한글 + 영문 요약 추가)
+    const passageData = [
+        { id: 1, 
+          summary: "새로운 인생이나 경력이 어떻게 펼쳐질지 미리 다 알 수 없으므로, 삶을 <span class='cloze' onclick='toggleCloze(this)'>직소 퍼즐</span>처럼 대하며 전체 그림이 <span class='cloze' onclick='toggleCloze(this)'>점진적으로</span> 드러남을 인정하고 끈기 있게 계속해 나가야 한다.",
+          engSummary: "Since we cannot know in advance how a new life or career will unfold, we must treat life like a <span class='cloze' onclick='toggleCloze(this)'>jigsaw puzzle</span> and accept that the full picture will emerge <span class='cloze' onclick='toggleCloze(this)'>gradually</span>."
+        },
+        { id: 2, 
+          summary: "화식(요리된 음식)은 생물학적 이점을 주는데, 가장 중요한 것은 신체가 얻는 <span class='cloze' onclick='toggleCloze(this)'>에너지의 양</span>을 증가시켰다는 점이며 인간은 인류 진화 초기부터 화식에 <span class='cloze' onclick='toggleCloze(this)'>생물학적으로 적응</span>해왔다.",
+          engSummary: "Cooked food provides biological advantages, most importantly increasing the <span class='cloze' onclick='toggleCloze(this)'>amount of energy</span> the body obtains, and humans have been <span class='cloze' onclick='toggleCloze(this)'>biologically adapting</span> to it since early evolution."
+        },
+        { id: 3, 
+          summary: "건축 법규는 재해의 부정적 영향을 줄일 수 있지만, <span class='cloze' onclick='toggleCloze(this)'>구조적 온전함</span>이나 거주 가능성을 완전히 보장하지는 못하며 사회적 <span class='cloze' onclick='toggleCloze(this)'>불평등한 적용</span>이나 집행 무시라는 한계를 가진다.",
+          engSummary: "Building codes can reduce hazard impacts but cannot fully ensure <span class='cloze' onclick='toggleCloze(this)'>structural integrity</span> or habitability, and are limited by <span class='cloze' onclick='toggleCloze(this)'>inequity in its application</span> and lack of enforcement."
+        },
+        { id: 4, 
+          summary: "2010년과 2022년의 주요 오염국 이산화탄소 배출량 비교 그래프에 관한 내용으로, <span class='cloze' onclick='toggleCloze(this)'>중국</span>이 양년도 모두 가장 높은 배출량을 기록했으며 미국의 배출량은 감소했으나 여전히 2위를 유지했다.",
+          engSummary: "In the graph comparing carbon dioxide emissions between 2010 and 2022, <span class='cloze' onclick='toggleCloze(this)'>China</span> recorded the highest emissions in both years."
+        },
+        { id: 5, 
+          summary: "고대 도시 중심지가 집약적 관개 농업 지역에 위치했던 이유는 가족당 잉여는 적더라도 <span class='cloze' onclick='toggleCloze(this)'>단위 면적당 산출량</span>이 극도로 높아 좁은 지역에 많은 인구 부양이 가능했고 <span class='cloze' onclick='toggleCloze(this)'>수로 수송</span>이 용이했기 때문이다.",
+          engSummary: "Ancient urban centers were located in intensive irrigated agriculture regions because of the high <span class='cloze' onclick='toggleCloze(this)'>output per unit of land</span> and the ease of <span class='cloze' onclick='toggleCloze(this)'>boat transport</span> for food."
+        },
+        { id: 6, 
+          summary: "우리가 원하는 모든 산림 자원과 여가를 동시에 충족할 수 없듯, 자원은 제한되어 있어 자원 활용 시 반드시 <span class='cloze' onclick='toggleCloze(this)'>선택</span>을 해야 하며 그 대가로 <span class='cloze' onclick='toggleCloze(this)'>기회비용</span>(포기한 기회)이 발생한다.",
+          engSummary: "Because resources are limited, we cannot have everything we want and must make <span class='cloze' onclick='toggleCloze(this)'>choices</span>, which inevitably results in the <span class='cloze' onclick='toggleCloze(this)'>cost of opportunities</span> lost."
+        },
+        { id: 7, 
+          summary: "환경적 스트레스는 유전적 다양성이 높은 집단의 생존을 돕지만, 인간이 뿌린 독소나 <span class='cloze' onclick='toggleCloze(this)'>살충제</span>는 해충 집단에 <span class='cloze' onclick='toggleCloze(this)'>선택 압력</span>으로 작용하여 결국 독소에 대한 내성을 발달시키는 부작용을 낳는다.",
+          engSummary: "Environmental stress aids survival for diverse populations, but human-added toxins like <span class='cloze' onclick='toggleCloze(this)'>pesticides</span> act as <span class='cloze' onclick='toggleCloze(this)'>selection pressure</span>, causing pests to develop tolerance."
+        },
+        { id: 8, 
+          summary: "인간과 동물(카푸친 원숭이)의 행복과 만족감은 절대적인 자산의 양이 아니라 주변 타인과 비교한 <span class='cloze' onclick='toggleCloze(this)'>상대적 부</span>에 의해 결정되므로, 유발된 <span class='cloze' onclick='toggleCloze(this)'>불평등</span>은 큰 불만을 가져온다.",
+          engSummary: "Happiness depends not on absolute wealth but on <span class='cloze' onclick='toggleCloze(this)'>relative wealth</span> compared to others, so resulting <span class='cloze' onclick='toggleCloze(this)'>inequality</span> brings only discontent."
+        },
+        { id: 9, 
+          summary: "인간은 혼자 있고 싶은 욕구도 있지만, 타인과의 상호작용과 동반자 관계를 지속해서 추구하는데 이는 사랑, 승인, 정서적 안정을 얻고 자신의 <span class='cloze' onclick='toggleCloze(this)'>정체성을 확인</span>받기 위함이다.",
+          engSummary: "Despite the wish to be alone, humans seek companionship to fulfill emotional needs and to <span class='cloze' onclick='toggleCloze(this)'>confirm our identity</span>."
+        },
+        { id: 10, 
+          summary: "사람마다 이해하는 방식이 다른 이유는 각자의 <span class='cloze' onclick='toggleCloze(this)'>기억</span>이 다르기 때문이며, 새로운 사건을 이해할 때 칵테일파티 대본처럼 메모리에 저장된 가장 유사한 <span class='cloze' onclick='toggleCloze(this)'>지식 구조(스크립트)</span>를 꺼내 예측하며 이해한다.",
+          engSummary: "People understand differently because of different <span class='cloze' onclick='toggleCloze(this)'>memories</span>, and understanding requires finding the correct <span class='cloze' onclick='toggleCloze(this)'>knowledge structure (script)</span> to form expectations."
+        },
+        { id: 11, 
+          summary: "자원 고갈을 경고하는 예측가들은 <span class='cloze' onclick='toggleCloze(this)'>시장 가격의 힘</span>을 간과하는 경향이 있는데, 실제로 자원이 고갈될수록 <span class='cloze' onclick='toggleCloze(this)'>가격이 상승</span>하여 자원의 사용 수명이 훨씬 더 늘어나게 된다.",
+          engSummary: "Forecasters of resource depletion often ignore the <span class='cloze' onclick='toggleCloze(this)'>power of markets</span>, where depletion causes <span class='cloze' onclick='toggleCloze(this)'>prices to rise</span>, making resources last longer."
+        },
+        { id: 12, 
+          summary: "모바일 기기 및 통신 기술이 엄청난 속도로 보급되면서 에모티콘 사용과 비음성 소통이 일반화되었고, 전자 메시지의 범람으로 학자들은 <span class='cloze' onclick='toggleCloze(this)'>대면 소통</span>이 사라질까 우려하고 있다.",
+          engSummary: "With the explosive growth of mobile devices and non-voice messaging, researchers worry that <span class='cloze' onclick='toggleCloze(this)'>face-to-face communications</span> could become extinct."
+        },
+        { id: 13, 
+          summary: "클라이드 톰보는 며칠 간격으로 촬영한 밤하늘 사진을 번갈아 보여주는 기계를 통해 수많은 부동의 점들 사이에서 움직이는 작은 점을 시각적으로 <span class='cloze' onclick='toggleCloze(this)'>감지</span>해내어 왜소행성 <span class='cloze' onclick='toggleCloze(this)'>명왕성(Pluto)</span>을 발견했다.",
+          engSummary: "Clyde Tombaugh visually managed to <span class='cloze' onclick='toggleCloze(this)'>detect</span> a moving dot among countless stars using a machine, discovering the dwarf planet <span class='cloze' onclick='toggleCloze(this)'>Pluto</span>."
+        },
+        { id: 14, 
+          summary: "직장에서의 완벽주의는 전문성과 구별되어야 하며, 모든 업무에서 110%의 완벽한 벤치마크를 달성하려는 무리한 요구는 개인에게 <span class='cloze' onclick='toggleCloze(this)'>번아웃(직무소진)</span>을 유발하고 실패의 원인이 된다.",
+          engSummary: "Excusing unmanageable perfectionism as professionalism can lead to <span class='cloze' onclick='toggleCloze(this)'>burnout</span> and failure."
+        },
+        { id: 15, 
+          summary: "문학은 인간의 감정과 경험의 복잡성을 전달하는 시공간 초월 예술 형태이며, 독자들로 하여금 책 속에서 <span class='cloze' onclick='toggleCloze(this)'>투영된 자신</span>을 발견하고 타인과 공감하며 <span class='cloze' onclick='toggleCloze(this)'>인간 조건</span>에 대한 깊은 이해를 얻게 한다.",
+          engSummary: "Literature conveys the complexities of human experience, allowing us to see <span class='cloze' onclick='toggleCloze(this)'>ourselves reflected</span> in books and gain a deeper understanding of the <span class='cloze' onclick='toggleCloze(this)'>human condition</span>."
+        },
+        { id: 16, 
+          summary: "뷰파인더는 그림을 그릴 때 주변 시각 정보를 차단하여 아이들이 특정 영역에 <span class='cloze' onclick='toggleCloze(this)'>집중하고 관찰</span>을 조직화하도록 도와주나, 종이 카드의 크기가 적절하지 않으면 다루기 불편하므로 유의해야 한다.",
+          engSummary: "A viewfinder helps children <span class='cloze' onclick='toggleCloze(this)'>focus and organise their observation</span> by blocking distracting visual information."
+        },
+        { id: 17, 
+          summary: "우리가 인지하지 못하더라도 세상과 뇌의 신경망은 끊임없이 변하며 헤라클레이토스의 말처럼 아무도 같은 강에 두 번 설 수 없듯, 세상에 <span class='cloze' onclick='toggleCloze(this)'>정적인(Static)</span> 것은 없으며 미세한 변화가 쌓여 미래를 바꾼다.",
+          engSummary: "Nothing is <span class='cloze' onclick='toggleCloze(this)'>static</span>; our world and neural networks are constantly changing, and even imperceptible changes add up over time."
+        },
+        { id: 18, 
+          summary: "인간은 행동에 따라 도출되는 <span class='cloze' onclick='toggleCloze(this)'>결과나 보상</span>에 맞추어 적응하므로, 자신에게 이익이나 칭찬을 가져다주는 행동은 지속하고 불편함이나 감점 등 <span class='cloze' onclick='toggleCloze(this)'>불이익</span>을 주는 행동은 피하려는 경향이 있다.",
+          engSummary: "Humans adapt by continuing actions that bring a <span class='cloze' onclick='toggleCloze(this)'>benefit or reward</span> and avoiding those that lead to <span class='cloze' onclick='toggleCloze(this)'>disadvantages</span>."
+        }
+    ];
+
+    // 탭 전환 기능
+    function openTab(evt, tabId) {
+        const tabContents = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < tabContents.length; i++) {
+            tabContents[i].classList.remove("active");
+        }
+        const tabBtns = document.getElementsByClassName("tab-btn");
+        for (let i = 0; i < tabBtns.length; i++) {
+            tabBtns[i].classList.remove("active");
+        }
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+
+    // Cloze 클릭 토글
+    function toggleCloze(element) {
+        element.classList.toggle("revealed");
+    }
+
+    // 데이터 초기화 및 배치
+    window.onload = function() {
+        // Tab 1 빌드
+        const testBody = document.getElementById("voca-test-body");
+        vocaData.forEach(item => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${item.id}</td>
+                <td style="font-weight:bold; color:var(--primary-color);">${item.word}</td>
+                <td><input type="text" class="voca-input" data-ans="${item.mean}" placeholder="뜻 입력"></td>
+                <td style="color:#64748b; font-size:0.9rem;">${item.syn}</td>
+                <td style="color:#64748b; font-size:0.9rem;">${item.ant}</td>
+            `;
+            testBody.appendChild(tr);
+        });
+
+        // Tab 2 빌드
+        const synBody = document.getElementById("synonym-test-body");
+        vocaData.forEach(item => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${item.id}</td>
+                <td><strong>${item.word}</strong> <span style="color:#64748b; font-size:0.85rem;">[${item.mean}]</span></td>
+                <td><input type="text" class="syn-input" data-ans="${item.syn}" placeholder="유의어 1개 입력"></td>
+                <td><span class="status-badge status-none" id="syn-status-${item.id}">대기</span></td>
+                <td><button onclick="alert('정답 리스트: ${item.syn}')" style="padding:2px 6px; font-size:0.8rem; cursor:pointer;">보기</button></td>
+            `;
+            synBody.appendChild(tr);
+        });
+
+        // Tab 3 빌드
+        const antGrid = document.getElementById("antonym-grid");
+        vocaData.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "voca-card";
+            card.innerHTML = `
+                <div class="word">${item.word}</div>
+                <div class="meaning">뜻: ${item.mean}</div>
+                <div style="margin-top:5px;">반의어: <span class="target-val">${item.ant}</span></div>
+            `;
+            antGrid.appendChild(card);
+        });
+
+        // Tab 4 빌드 (한글 + 영어 요약 동시 노출)
+        const passageContainer = document.getElementById("passage-container");
+        passageData.forEach(p => {
+            const box = document.createElement("div");
+            box.className = "passage-box";
+            box.innerHTML = `
+                <div class="passage-title">📌 지문 [${p.id}] 핵심 요약</div>
+                <div class="passage-summary">
+                    <div class="kor-summary">${p.summary}</div>
+                    <div class="eng-summary">${p.engSummary}</div>
+                </div>
+            `;
+            passageContainer.appendChild(box);
+        });
+    }
+
+    // 본문 단어 채점
+    function checkVocaTest() {
+        const inputs = document.querySelectorAll(".voca-input");
+        let correctCnt = 0;
+        inputs.forEach(input => {
+            const userAns = input.value.trim();
+            const correctAns = input.getAttribute("data-ans");
+            
+            if(userAns !== "" && (userAns === correctAns || correctAns.includes(userAns))) {
+                input.style.backgroundColor = "#dcfce7";
+                input.style.borderColor = "var(--success-color)";
+                correctCnt++;
+            } else {
+                input.style.backgroundColor = "#fee2e2";
+                input.style.borderColor = "red";
+                input.value = `${userAns} (정답: ${correctAns})`;
+            }
+        });
+        alert(`채점 완료! 총 50문제 중 ${correctCnt}문제를 맞췄습니다.`);
+    }
+
+    // 유의어 채점 (3개 중 1개만 맞아도 정답 처리)
+    function checkSynonymTest() {
+        const inputs = document.querySelectorAll(".syn-input");
+        inputs.forEach((input, index) => {
+            const id = index + 1;
+            const userAns = input.value.trim().toLowerCase();
+            const correctAnsStr = input.getAttribute("data-ans").toLowerCase();
+            
+            // 콤마로 분리하여 배열 생성 후 띄어쓰기 제거
+            const correctAnsArray = correctAnsStr.split(',').map(s => s.trim());
+            const badge = document.getElementById(`syn-status-${id}`);
+
+            if(userAns !== "" && correctAnsArray.includes(userAns)) {
+                badge.textContent = "정답";
+                badge.className = "status-badge status-correct";
+            } else {
+                badge.textContent = "오답";
+                badge.className = "status-badge status-wrong";
+            }
+        });
+    }
+</script>
+</body>
+</html>
